@@ -47,4 +47,23 @@ RandomMatrix(std::default_random_engine & gen,
     return RandomMatrixOfSize<Float>(gen, x, y, density);
 }
 
+template<typename Float>
+struct MatrixCache {
+    Eigen::SparseMatrix<Float>
+    getRandomMatrix(std::default_random_engine & gen,
+                    Eigen::Index rows, Eigen::Index cols,
+                    float density) {
+        auto it = cache_.find(std::make_pair(rows, cols));
+        if (it != cache_.end()) {
+            return it->second;
+        } else {
+            it = cache_.emplace(std::make_pair(rows, cols),
+                                RandomMatrixOfSize<Float>(gen, rows, cols, density)).first;
+            return it->second;
+        }
+    }
+private:
+    std::map<std::pair<Eigen::Index, Eigen::Index>, Eigen::SparseMatrix<Float>> cache_;
+};
+
 #endif // RANDOM_MATRIX_HPP
