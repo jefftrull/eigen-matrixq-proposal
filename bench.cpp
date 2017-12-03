@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
             auto id_size = qr.matrixQ().rows();   // RHS size for multiply
             Matrix<Float, Dynamic, Dynamic> id =
                 Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
-            while (state.KeepRunning()) {
+            for (auto _ : state) {
                 Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ() * id;
                 benchmark::DoNotOptimize(q);
             }
@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
                                                                (float)(state.range(1))/100.);
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto id_size = qr.matrixQ().rows();   // RHS size for multiply
-            while (state.KeepRunning()) {
+            for (auto _ : state) {
                 Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
                 benchmark::DoNotOptimize(q);
             }
