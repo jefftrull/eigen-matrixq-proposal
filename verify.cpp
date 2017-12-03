@@ -8,8 +8,9 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
+#include <Eigen/Core>
+#include <Eigen/SparseCore>
+#include <Eigen/SparseQR>
 
 #include "random_matrix.hpp"
 

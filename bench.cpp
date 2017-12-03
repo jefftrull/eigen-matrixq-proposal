@@ -9,8 +9,9 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
+#include <Eigen/Core>
+#include <Eigen/SparseCore>
+#include <Eigen/SparseQR>
 
 #include <benchmark/benchmark.h>
 
@@ -59,7 +60,8 @@ int main(int argc, char* argv[]) {
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto id_size = qr.matrixQ().rows();   // RHS size for multiply
             for (auto _ : state) {
-                Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
+                Matrix<Float, Dynamic, Dynamic> q =
+                    qr.matrixQ() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
                 benchmark::DoNotOptimize(q);
             }
         })->Ranges({{10, 1000}, {5, 20}});
