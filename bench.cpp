@@ -22,15 +22,6 @@ int main(int argc, char* argv[]) {
     // process and remove gbench arguments
     benchmark::Initialize(&argc, argv);
 
-    if (argc < 2) {
-        std::cerr << "Usage: rt <density>\n";
-        return 1;
-    }
-
-    // TODO use gbench mechanisms for these:
-
-    float const density = std::atof(argv[1]);
-
     using Float = float;
 
     // create a random NxN sparse matrix
@@ -45,7 +36,8 @@ int main(int argc, char* argv[]) {
         "GenerateQMatrix",
         [&](benchmark::State & state) {
             Index size = state.range(0);
-            SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size, density);
+            SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
+                                                               (float)(state.range(1))/100.);
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto id_size = qr.matrixQ().rows();   // RHS size for multiply
             Matrix<Float, Dynamic, Dynamic> id =
@@ -54,7 +46,7 @@ int main(int argc, char* argv[]) {
                 Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ() * id;
                 benchmark::DoNotOptimize(q);
             }
-        })->RangeMultiplier(10)->Range(10,1000);
+        })->Ranges({{10, 1000}, {5, 20}});
 
     // new method uses specialization for dense identity matrix
 
@@ -62,14 +54,15 @@ int main(int argc, char* argv[]) {
         "GenerateQMatrix-New",
         [&](benchmark::State & state) {
             Index size = state.range(0);
-            SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size, density);
+            SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
+                                                               (float)(state.range(1))/100.);
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto id_size = qr.matrixQ().rows();   // RHS size for multiply
             while (state.KeepRunning()) {
                 Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
                 benchmark::DoNotOptimize(q);
             }
-        })->RangeMultiplier(10)->Range(10,1000);
+        })->Ranges({{10, 1000}, {5, 20}});
 
     benchmark::RunSpecifiedBenchmarks();
 
