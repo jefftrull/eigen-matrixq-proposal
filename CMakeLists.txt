@@ -16,6 +16,8 @@ if( NOT CMAKE_BUILD_TYPE )
   set( CMAKE_BUILD_TYPE Release CACHE STRING "Default build type (Debug, Release, RelWithDebInfo)" FORCE )
 endif()
 
+set( CMAKE_CXX_FLAGS_DEBUG "-g -Og -fno-omit-frame-pointer" )
+
 find_package( Eigen3 )
 if( NOT EIGEN3_FOUND )
   message( FATAL_ERROR "could not find Eigen" )
