@@ -34,7 +34,9 @@ int main(int argc, char* argv[]) {
     for (int t = 0; t < numTests; t++) {
         // TODO remove
         Eigen::base_running = false;
+        Eigen::base_transpose_running = false;
         Eigen::specialized_running = false;
+        Eigen::specialized_transpose_running = false;
 
         // create a random sparse matrix of up to sizeXsize
         SparseMatrix<Float> sm = RandomMatrix<Float>(gen, size, density);
@@ -58,18 +60,40 @@ int main(int argc, char* argv[]) {
             std::cerr << "did not use specialization\n";
             return 1;
         }
-        if (qnew != qold) {
+        if ((qnew - qold).norm() > 1e-6) {
             std::cerr << "FAIL!\n";
             IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-            Matrix<Float, Dynamic, Dynamic> dm(sm);
-            std::cerr << "A=\n" << Matrix<Float, Dynamic, Dynamic>(dm).format(OctaveFmt) << "\n";
-            Matrix<Float, Dynamic, Dynamic> dold(qold);
-            std::cerr << "Q(old)=\n" << Matrix<Float, Dynamic, Dynamic>(dold).format(OctaveFmt) << "\n";
-            Matrix<Float, Dynamic, Dynamic> dnew(qnew);
-            std::cerr << "Q(new)=\n" << Matrix<Float, Dynamic, Dynamic>(dnew).format(OctaveFmt) << "\n";
+            std::cerr << "A=\n" << Matrix<Float, Dynamic, Dynamic>(sm).format(OctaveFmt) << "\n";
+            std::cerr << "Q(old)=\n" << Matrix<Float, Dynamic, Dynamic>(qold).format(OctaveFmt) << "\n";
+            std::cerr << "Q(new)=\n" << Matrix<Float, Dynamic, Dynamic>(qnew).format(OctaveFmt) << "\n";
 
             return 1;
         }
+
+        // try out transpose version
+        Matrix<Float, Dynamic, Dynamic> qt = qr.matrixQ().transpose() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
+        if (!Eigen::specialized_transpose_running) {
+            std::cerr << "did not use specialization for transpose\n";
+            return 1;
+        }
+        Matrix<Float, Dynamic, Dynamic> qtold = qr.matrixQ().transpose() * id;
+        if (!Eigen::base_transpose_running) {
+            std::cerr << "did not use base for transpose\n";
+            return 1;
+        }
+
+        if ((qt - qtold).norm() > 1e-5) {
+            std::cerr << "TRANSPOSE FAIL!\n";
+            std::cerr << "matrix size " << sm.rows() << "x" << sm.cols() << "\n";
+            std::cerr << "norm difference " << (qt - qold.transpose()).norm() << "\n";
+            IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
+            std::cerr << "A=\n" << Matrix<Float, Dynamic, Dynamic>(sm).format(OctaveFmt) << "\n";
+            std::cerr << "Qt(old)=\n" << Matrix<Float, Dynamic, Dynamic>(qold.transpose()).format(OctaveFmt) << "\n";
+            std::cerr << "Qt(new)=\n" << Matrix<Float, Dynamic, Dynamic>(qt).format(OctaveFmt) << "\n";
+
+            return 1;
+        }
+
     }
 
     return 0;

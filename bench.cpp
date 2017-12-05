@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     // old method creates identity matrix, then multiplies
 
     benchmark::RegisterBenchmark(
-        "GenerateQMatrix",
+        "GenerateQMatrix-Orig",
         [&](benchmark::State & state) {
             Index size = state.range(0);
             SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
@@ -65,6 +65,39 @@ int main(int argc, char* argv[]) {
                 benchmark::DoNotOptimize(q);
             }
         })->Ranges({{10, 1000}, {5, 20}});
+
+    // now try the transposed versions of both
+    benchmark::RegisterBenchmark(
+        "GenerateQMatrix-Transpose-Orig",
+        [&](benchmark::State & state) {
+            Index size = state.range(0);
+            SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
+                                                               (float)(state.range(1))/100.);
+            SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
+            auto id_size = qr.matrixQ().rows();   // RHS size for multiply
+            Matrix<Float, Dynamic, Dynamic> id =
+                Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
+            for (auto _ : state) {
+                Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ().transpose() * id;
+                benchmark::DoNotOptimize(q);
+            }
+        })->Ranges({{10, 1000}, {5, 20}});
+
+    benchmark::RegisterBenchmark(
+        "GenerateQMatrix-Transpose-New",
+        [&](benchmark::State & state) {
+            Index size = state.range(0);
+            SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
+                                                               (float)(state.range(1))/100.);
+            SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
+            auto id_size = qr.matrixQ().rows();   // RHS size for multiply
+            for (auto _ : state) {
+                Matrix<Float, Dynamic, Dynamic> q =
+                    qr.matrixQ().transpose() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
+                benchmark::DoNotOptimize(q);
+            }
+        })->Ranges({{10, 1000}, {5, 20}});
+
 
     benchmark::RunSpecifiedBenchmarks();
 
