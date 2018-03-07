@@ -48,6 +48,24 @@ RandomMatrix(std::default_random_engine & gen,
 }
 
 template<typename Float>
+std::pair<Eigen::SparseMatrix<Float>, Eigen::SparseMatrix<Float>>
+RandomMatrixProduct(std::default_random_engine & gen,
+                    Eigen::Index max_dim,
+                    float density) {
+    using namespace Eigen;
+    std::uniform_int_distribution<Eigen::Index> dim(1, max_dim);
+
+    // to multiply two random matrices the column count of the first
+    // must match the row count of the second
+    Index r1   = dim(gen);
+    Index c1r2 = dim(gen);
+    Index c2   = dim(gen);
+
+    return std::make_pair(RandomMatrixOfSize<Float>(gen, r1, c1r2, density),
+                          RandomMatrixOfSize<Float>(gen, c1r2, c2, density));
+}
+
+template<typename Float>
 struct MatrixCache {
     Eigen::SparseMatrix<Float>
     getRandomMatrix(std::default_random_engine & gen,
