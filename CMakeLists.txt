@@ -23,6 +23,8 @@ if( NOT EIGEN3_FOUND )
   message( FATAL_ERROR "could not find Eigen" )
 endif()
 
+find_package( Boost 1.65 REQUIRED )
+
 # download and use Google Benchmark
 include( ExternalProject )
 ExternalProject_Add( GBENCH
@@ -50,6 +52,7 @@ set_target_properties( verify PROPERTIES
   CXX_STANDARD 14
 )
 target_include_directories( verify PUBLIC ${EIGEN3_INCLUDE_DIR} )
+target_link_libraries( verify Boost::boost )
 
 # Benchmarking code
 add_executable( bench bench.cpp )

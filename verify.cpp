@@ -9,8 +9,12 @@
 #include <iostream>
 #include <vector>
 #include <Eigen/Core>
+#include <Eigen/QR>
+#include <Eigen/SVD>
 #include <Eigen/SparseCore>
 #include <Eigen/SparseQR>
+
+#include <boost/iterator/counting_iterator.hpp>
 
 #include "random_matrix.hpp"
 
@@ -25,73 +29,140 @@ int main(int argc, char* argv[]) {
     Index const size = std::atoi(argv[1]);
     float const density = std::atof(argv[2]);
 
-    using Float = float;
+    using Float = double;
 
     const int numTests = 1000000;
     std::default_random_engine gen;
 
     // let's test a bunch of matrices of different sizes
     for (int t = 0; t < numTests; t++) {
-        // TODO remove
-        Eigen::base_running = false;
-        Eigen::base_transpose_running = false;
-        Eigen::specialized_running = false;
-        Eigen::specialized_transpose_running = false;
+        // test sparse QR by performing it on a random matrix and then doing a solve
 
         // create a random sparse matrix of up to sizeXsize
         SparseMatrix<Float> sm = RandomMatrix<Float>(gen, size, density);
+
+        // reject if it contains empty rows (SparseQR will not work!!)
+        if (std::any_of(
+                boost::counting_iterator<int>(0),
+                boost::counting_iterator<int>(sm.rows()),
+                [&sm](int row) {
+                    // is this row absent in every column?
+                    return std::all_of(
+                        boost::counting_iterator<int>(0),
+                        boost::counting_iterator<int>(sm.cols()),
+                        [row,&sm](int col) {
+                            // determine if this row is absent in the given column
+                            bool found = false;
+                            // InnerIterator is a Java-style iterator :-/
+                            for (auto it = SparseMatrix<Float>::InnerIterator(sm, col); it; ++it) {
+                                if (it.row() == row) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            return !found;
+                        });
+                })) {
+            continue;
+        }
+
+        // Perform a sparse QR decomposition on it
         SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(sm);
-        auto id_size = qr.matrixQ().rows();
-        // old path will create identity matrix and multiply by it
-
-        // invoke old (strictly a multiplication) code by creating a dense matrix that happens
-        // to be identity
-        Matrix<Float, Dynamic, Dynamic> id =
-            Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
-        Matrix<Float, Dynamic, Dynamic> qold = qr.matrixQ()*id;
-
-        // new path uses specialization for identity type
-        Matrix<Float, Dynamic, Dynamic> qnew = qr.matrixQ() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
-        if (!Eigen::base_running) {
-            std::cerr << "did not use base\n";
-            return 1;
+        if (qr.rank() == 0) {
+            // this is just too degenerate to do anything with
+            continue;
         }
-        if (!Eigen::specialized_running) {
-            std::cerr << "did not use specialization\n";
-            return 1;
-        }
-        if ((qnew - qold).norm() > 1e-6) {
-            std::cerr << "FAIL!\n";
+
+        // now the dense version
+        using MatrixDF = Matrix<Float, Dynamic, Dynamic>;
+        MatrixDF dm(sm);
+        auto denseqr = dm.colPivHouseholderQr();
+
+        // an idea for an error threshold:
+        // use epsilon times the number of operands involved, roughly
+        // this is about 2e-5 for a 50x50 float matrix with 10% density
+        // actually that was too low so I tweaked it... hacky :(
+        Float error_threshold = (20*sm.rows()*sm.cols()*density)*std::numeric_limits<Float>::epsilon();
+
+        // verify that we can recover the original matrix with Q*R*P'
+        // The original SparseQR is a little weird here. It expects that the RHS of anything you
+        // apply Q to will have the same number of rows as Q.  In the case of tall-and-thin matrices
+        // that means you cannot multiply R on the left by its own Q!
+        // IMO this is a bug as noted here:
+        // https://listengine.tuxfamily.org/lists.tuxfamily.org/eigen/2017/01/msg00108.html
+        // and I submitted a PR to fix it here:
+        // https://bitbucket.org/eigen/eigen/pull-requests/367
+        // For this code to work that fix must be in place
+
+        MatrixDF sprecover = qr.matrixQ() * (MatrixDF(qr.matrixR().template triangularView<Upper>()) * qr.colsPermutation().transpose());
+        if (((sprecover - MatrixDF(sm)).norm()/sprecover.norm()) > error_threshold) {
+            std::cerr << "test " << t << ": could not recover original sparse matrix (norm " << (sprecover - MatrixDF(sm)).norm() << " vs threshold " << error_threshold << ")\n";
             IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-            std::cerr << "A=\n" << Matrix<Float, Dynamic, Dynamic>(sm).format(OctaveFmt) << "\n";
-            std::cerr << "Q(old)=\n" << Matrix<Float, Dynamic, Dynamic>(qold).format(OctaveFmt) << "\n";
-            std::cerr << "Q(new)=\n" << Matrix<Float, Dynamic, Dynamic>(qnew).format(OctaveFmt) << "\n";
-
-            return 1;
+            std::cerr << "dense result had " << denseqr.matrixQ().rows() << "x" << denseqr.matrixQ().cols() << " Q matrix\n";
+            std::cerr << "assigning " << qr.matrixQ().rows() << "x" << qr.matrixQ().cols() << " Q result to dense matrix\n";
+            MatrixDF q = qr.matrixQ();
+            std::cerr << "from Q =\n" << q.format(OctaveFmt) << "\n";
+            std::cerr << "and R =\n" << MatrixDF(qr.matrixR().template triangularView<Upper>()).format(OctaveFmt) << "\n";
+            std::cerr << "computed:\n" << sprecover.format(OctaveFmt) << "\n";
+            std::cerr << "vs:\n" << MatrixDF(sm).format(OctaveFmt) << "\n";
+            std::abort();
         }
 
-        // try out transpose version
-        Matrix<Float, Dynamic, Dynamic> qt = qr.matrixQ().transpose() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
-        if (!Eigen::specialized_transpose_running) {
-            std::cerr << "did not use specialization for transpose\n";
-            return 1;
-        }
-        Matrix<Float, Dynamic, Dynamic> qtold = qr.matrixQ().transpose() * id;
-        if (!Eigen::base_transpose_running) {
-            std::cerr << "did not use base for transpose\n";
-            return 1;
-        }
-
-        if ((qt - qtold).norm() > 1e-5) {
-            std::cerr << "TRANSPOSE FAIL!\n";
-            std::cerr << "matrix size " << sm.rows() << "x" << sm.cols() << "\n";
-            std::cerr << "norm difference " << (qt - qold.transpose()).norm() << "\n";
+        // Perform a dense QR decomposition on the same matrix
+        // Try to recover with Q*R*P'
+        MatrixDF denseR = denseqr.matrixR().template triangularView<Upper>();
+        MatrixDF drecover = denseqr.matrixQ() * denseR * denseqr.colsPermutation().transpose();
+        if (((drecover - dm).norm()/drecover.norm()) > error_threshold) {
+            std::cerr << "could not recover original dense matrix (norm " << (drecover - dm).norm() << " vs threshold " << error_threshold << ")\n";
             IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-            std::cerr << "A=\n" << Matrix<Float, Dynamic, Dynamic>(sm).format(OctaveFmt) << "\n";
-            std::cerr << "Qt(old)=\n" << Matrix<Float, Dynamic, Dynamic>(qold.transpose()).format(OctaveFmt) << "\n";
-            std::cerr << "Qt(new)=\n" << Matrix<Float, Dynamic, Dynamic>(qt).format(OctaveFmt) << "\n";
+            std::cerr << "computed:\n" << drecover.format(OctaveFmt) << "\n";
+            std::cerr << "vs:\n" << dm.format(OctaveFmt) << "\n";
+            std::abort();
+        }
 
-            return 1;
+        // try a solve
+        if ((qr.rows() == qr.cols()) && (qr.rank() == qr.cols())) {
+            // full rank -> invertible
+
+            // Create a random dense matrix that the sparse Q (and hopefully the dense Q) can be applied to
+            MatrixDF rhsmat = MatrixDF::Random(qr.rows(), qr.cols());
+
+            // solve vs. this new RHS
+            MatrixDF spresult = qr.solve(rhsmat);
+            MatrixDF dresult  = denseqr.solve(rhsmat);
+            // compare vs. dense result
+            // This source: http://people.eecs.berkeley.edu/~demmel/cs267/lecture21/lecture21.html
+            // suggests using the input's "condition number" to bound error checks
+            JacobiSVD<MatrixXd> svd(dm);
+            Float cond = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size()-1);
+            Float solve_error_threshold = 2 * cond * std::numeric_limits<Float>::epsilon();
+            if (((spresult - dresult).norm()/spresult.norm()) > solve_error_threshold) {
+                std::cerr << "solve produced different results (norm ratio " << ((spresult - dresult).norm()/spresult.norm()) << " vs limit " << solve_error_threshold << ")\n";
+                IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
+                std::cerr << "dense:\n" << dresult.format(OctaveFmt) << "\n";
+                std::cerr << "sparse:\n" << spresult.format(OctaveFmt) << "\n";
+                std::cerr << "for input matrix:\n" << dm.format(OctaveFmt) << "\n";
+                std::cerr << "and rhs:\n" << rhsmat.format(OctaveFmt) << "\n";
+                std::abort();
+            }
+        }
+
+        // Finally, verify that matrixQ() applied on the LHS of identity, and matrixQ assigned
+        // to a dense matrix, are the same
+        // We cannot simply compare the sparse and dense Q results because of pivoting
+        MatrixDF id = MatrixDF::Identity(qr.rows(), qr.rows());
+        MatrixDF q(qr.matrixQ());
+        MatrixDF q_times_id = qr.matrixQ() * id;
+        if ((q_times_id - q).norm() > error_threshold) {
+            std::cerr << "matrixQ() * identity and matrixQ() converted to matrix differ!\n";
+            std::abort();
+        }
+        MatrixDF qt_times_id = qr.matrixQ().transpose() * id;
+        // this does not work :(
+        // MatrixDF qt(qr.matrixQ().transpose());
+        if ((qt_times_id - q.transpose()).norm() > error_threshold) {
+            std::cerr << "matrixQ().transpose() * identity and transposed matrixQ(), converted to matrix, differ!\n";
+            std::abort();
         }
 
     }
