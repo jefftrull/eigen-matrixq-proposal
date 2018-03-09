@@ -154,14 +154,19 @@ int main(int argc, char* argv[]) {
         MatrixDF q(qr.matrixQ());
         MatrixDF q_times_id = qr.matrixQ() * id;
         if ((q_times_id - q).norm() > error_threshold) {
+            IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
             std::cerr << "matrixQ() * identity and matrixQ() converted to matrix differ!\n";
+            std::cerr << "the former is:\n" << q_times_id.format(OctaveFmt) << "\nand the latter is:\n" << MatrixDF(q).format(OctaveFmt) << "\n";
+            std::cerr << "the original matrix was:\n" << dm.format(OctaveFmt) << "\n";
             std::abort();
         }
         MatrixDF qt_times_id = qr.matrixQ().transpose() * id;
         // this does not work :(
         // MatrixDF qt(qr.matrixQ().transpose());
         if ((qt_times_id - q.transpose()).norm() > error_threshold) {
+            IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
             std::cerr << "matrixQ().transpose() * identity and transposed matrixQ(), converted to matrix, differ!\n";
+            std::cerr << "the former is:\n" << qt_times_id.format(OctaveFmt) << "\nand the latter is:\n" << MatrixDF(q.transpose()).format(OctaveFmt) << "\n";
             std::abort();
         }
 
