@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
     const int numTests = 1000000;
     std::default_random_engine gen;
 
+    IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
     // let's test a bunch of matrices of different sizes
     for (int t = 0; t < numTests; t++) {
         // test sparse QR by performing it on a random matrix and then doing a solve
@@ -97,7 +98,6 @@ int main(int argc, char* argv[]) {
         MatrixDF sprecover = qr.matrixQ() * (MatrixDF(qr.matrixR().template triangularView<Upper>()) * qr.colsPermutation().transpose());
         if (((sprecover - MatrixDF(sm)).norm()/sprecover.norm()) > error_threshold) {
             std::cerr << "test " << t << ": could not recover original sparse matrix (norm " << (sprecover - MatrixDF(sm)).norm() << " vs threshold " << error_threshold << ")\n";
-            IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
             std::cerr << "dense result had " << denseqr.matrixQ().rows() << "x" << denseqr.matrixQ().cols() << " Q matrix\n";
             std::cerr << "assigning " << qr.matrixQ().rows() << "x" << qr.matrixQ().cols() << " Q result to dense matrix\n";
             MatrixDF q = qr.matrixQ();
@@ -114,7 +114,6 @@ int main(int argc, char* argv[]) {
         MatrixDF drecover = denseqr.matrixQ() * denseR * denseqr.colsPermutation().transpose();
         if (((drecover - dm).norm()/drecover.norm()) > error_threshold) {
             std::cerr << "could not recover original dense matrix (norm " << (drecover - dm).norm() << " vs threshold " << error_threshold << ")\n";
-            IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
             std::cerr << "computed:\n" << drecover.format(OctaveFmt) << "\n";
             std::cerr << "vs:\n" << dm.format(OctaveFmt) << "\n";
             std::abort();
@@ -138,7 +137,6 @@ int main(int argc, char* argv[]) {
             Float solve_error_threshold = 2 * cond * std::numeric_limits<Float>::epsilon();
             if (((spresult - dresult).norm()/spresult.norm()) > solve_error_threshold) {
                 std::cerr << "solve produced different results (norm ratio " << ((spresult - dresult).norm()/spresult.norm()) << " vs limit " << solve_error_threshold << ")\n";
-                IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
                 std::cerr << "dense:\n" << dresult.format(OctaveFmt) << "\n";
                 std::cerr << "sparse:\n" << spresult.format(OctaveFmt) << "\n";
                 std::cerr << "for input matrix:\n" << dm.format(OctaveFmt) << "\n";
@@ -154,7 +152,6 @@ int main(int argc, char* argv[]) {
         MatrixDF q(qr.matrixQ());
         MatrixDF q_times_id = qr.matrixQ() * id;
         if ((q_times_id - q).norm() > error_threshold) {
-            IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
             std::cerr << "matrixQ() * identity and matrixQ() converted to matrix differ!\n";
             std::cerr << "the former is:\n" << q_times_id.format(OctaveFmt) << "\nand the latter is:\n" << MatrixDF(q).format(OctaveFmt) << "\n";
             std::cerr << "the original matrix was:\n" << dm.format(OctaveFmt) << "\n";
@@ -164,7 +161,6 @@ int main(int argc, char* argv[]) {
         // this does not work :(
         // MatrixDF qt(qr.matrixQ().transpose());
         if ((qt_times_id - q.transpose()).norm() > error_threshold) {
-            IOFormat OctaveFmt(StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
             std::cerr << "matrixQ().transpose() * identity and transposed matrixQ(), converted to matrix, differ!\n";
             std::cerr << "the former is:\n" << qt_times_id.format(OctaveFmt) << "\nand the latter is:\n" << MatrixDF(q.transpose()).format(OctaveFmt) << "\n";
             std::abort();
