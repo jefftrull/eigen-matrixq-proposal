@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Finally, verify that matrixQ() applied on the LHS of identity, and matrixQ assigned
+        // Verify that matrixQ() applied on the LHS of identity, and matrixQ assigned
         // to a dense matrix, are the same
         // We cannot simply compare the sparse and dense Q results because of pivoting
         MatrixDF id = MatrixDF::Identity(qr.rows(), qr.rows());
@@ -170,6 +170,43 @@ int main(int argc, char* argv[]) {
             std::abort();
         }
 
+        // Finally, check the operation of a "thin" Q, that is, applying it to a reduced identity
+        // in order to get the first k columns
+        if (qr.cols() >= 2) {
+            auto k = q.cols() / 2;
+            // two ways of forming the thin q
+            MatrixDF thin_q = qr.matrixQ() * MatrixDF::Identity(q.cols(), k);
+            if ((thin_q - q.leftCols(k)).norm() > error_threshold) {
+                std::cerr << "thin Q formed from applying Q=\n" << q.format(OctaveFmt);
+                std::cerr << "\nto " << k << " column identity gives wrong result:\n";
+                std::cerr << thin_q.format(OctaveFmt) << "\n";
+                std::abort();
+            }
+            MatrixDF thin_q_2 = qr.matrixQ() * MatrixDF::Identity(q.cols(), q.cols()).leftCols(k);
+            if ((thin_q_2 - q.leftCols(k)).norm() > error_threshold) {
+                std::cerr << "thin Q formed from applying Q=\n" << q.format(OctaveFmt);
+                std::cerr << "\nto identity and taking the left " << k << " columns gives wrong result:\n";
+                std::cerr << thin_q.format(OctaveFmt) << "\n";
+                std::abort();
+            }
+            // now the transpose cases
+            MatrixDF thin_q_t = qr.matrixQ().transpose() * MatrixDF::Identity(q.cols(), k);
+            if ((thin_q_t - q.transpose().leftCols(k)).norm() > error_threshold) {
+                std::cerr << "Q was " << q.format(OctaveFmt) << "\n";
+                std::cerr << "thin Q formed from applying Q'=\n" << MatrixDF(q.transpose()).format(OctaveFmt);
+                std::cerr << "\nto " << k << " column identity gives wrong result:\n";
+                std::cerr << thin_q_t.format(OctaveFmt) << "\n";
+                std::abort();
+            }
+            MatrixDF thin_q_t_2 = qr.matrixQ().transpose() * MatrixDF::Identity(q.cols(), q.cols()).leftCols(k);
+            if ((thin_q_t_2 - q.transpose().leftCols(k)).norm() > error_threshold) {
+                std::cerr << "thin Q formed from applying Q'=\n" << MatrixDF(q.transpose()).format(OctaveFmt);
+                std::cerr << "\nto identity and taking the left " << k << " columns gives wrong result:\n";
+                std::cerr << thin_q_t_2.format(OctaveFmt) << "\n";
+                std::abort();
+            }
+
+        }
     }
 
     return 0;
