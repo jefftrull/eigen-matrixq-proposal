@@ -89,15 +89,6 @@ int main(int argc, char* argv[]) {
         Float error_threshold = (20*sm.rows()*sm.cols()*density)*std::numeric_limits<Float>::epsilon();
 
         // verify that we can recover the original matrix with Q*R*P'
-        // The original SparseQR is a little weird here. It expects that the RHS of anything you
-        // apply Q to will have the same number of rows as Q.  In the case of tall-and-thin matrices
-        // that means you cannot multiply R on the left by its own Q!
-        // IMO this is a bug as noted here:
-        // https://listengine.tuxfamily.org/lists.tuxfamily.org/eigen/2017/01/msg00108.html
-        // and I submitted a PR to fix it here:
-        // https://bitbucket.org/eigen/eigen/pull-requests/367
-        // For this code to work that fix must be in place
-
         MatrixDF sprecover = qr.matrixQ() * (MatrixDF(qr.matrixR().template triangularView<Upper>()) * qr.colsPermutation().transpose());
         if (((sprecover - MatrixDF(sm)).norm()/sprecover.norm()) > error_threshold) {
             std::cerr << "test " << t << ": could not recover original sparse matrix (norm " << (sprecover - MatrixDF(sm)).norm() << " vs threshold " << error_threshold << ")\n";
