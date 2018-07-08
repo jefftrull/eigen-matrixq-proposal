@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
 
         // Finally, check the operation of a "thin" Q, that is, applying it to a reduced identity
         // in order to get the first k columns
-        if (qr.cols() >= 2) {
+        if ((qr.cols() >= 2) && (q.cols() >= 2)) {
             auto k = q.cols() / 2;
             // two ways of forming the thin q
             MatrixDF thin_q = qr.matrixQ() * MatrixDF::Identity(q.cols(), k);
