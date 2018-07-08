@@ -8,6 +8,9 @@
 
 cmake_minimum_required( VERSION 3.6 )
 
+# create compile_commands.json for tools
+set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+
 # for packages without a standard CMake find script:
 set( CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
