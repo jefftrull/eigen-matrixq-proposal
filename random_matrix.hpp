@@ -76,17 +76,17 @@ struct MatrixCache {
     getRandomMatrix(std::default_random_engine & gen,
                     Eigen::Index rows, Eigen::Index cols,
                     float density) {
-        auto it = cache_.find(std::make_pair(rows, cols));
+        auto it = cache_.find(std::make_tuple(rows, cols, density));
         if (it != cache_.end()) {
             return it->second;
         } else {
-            it = cache_.emplace(std::make_pair(rows, cols),
+            it = cache_.emplace(std::make_tuple(rows, cols, density),
                                 RandomMatrixOfSize<Float>(gen, rows, cols, density)).first;
             return it->second;
         }
     }
 private:
-    std::map<std::pair<Eigen::Index, Eigen::Index>, Eigen::SparseMatrix<Float>> cache_;
+    std::map<std::tuple<Eigen::Index, Eigen::Index, float>, Eigen::SparseMatrix<Float>> cache_;
 };
 
 #endif // RANDOM_MATRIX_HPP
