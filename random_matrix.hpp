@@ -30,6 +30,11 @@ RandomMatrixOfSize(std::default_random_engine & gen,
             }
         }
     }
+    if (tripletList.empty()) {
+        // try again
+        return RandomMatrixOfSize<Float>(gen, rows, cols, density);
+    }
+
     SparseMatrix<Float> mat(rows, cols);
     mat.setFromTriplets(tripletList.begin(), tripletList.end());
     return mat;
