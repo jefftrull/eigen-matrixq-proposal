@@ -74,6 +74,9 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
+        // Verify we can assign the result to a sparse matrix
+        SparseMatrix<Float> spQ; spQ = qr.matrixQ();
+
         // now the dense version
         using MatrixDF = Matrix<Float, Dynamic, Dynamic>;
         MatrixDF dm(sm);
