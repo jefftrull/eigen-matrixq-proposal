@@ -20,6 +20,7 @@ if( NOT CMAKE_BUILD_TYPE )
 endif()
 
 set( CMAKE_CXX_FLAGS_DEBUG "-g -Og -fno-omit-frame-pointer" )
+set( CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native" )
 
 find_package( Eigen3 )
 if( NOT EIGEN3_FOUND )
@@ -64,4 +65,12 @@ set_target_properties( bench PROPERTIES
 )
 target_include_directories( bench PUBLIC ${EIGEN3_INCLUDE_DIR} )
 target_link_libraries( bench gbench )
+
+# benchmarking ggael style for Sparse QR
+add_executable( benchgg bench_ggael.cpp )
+set_target_properties( benchgg PROPERTIES
+  CXX_STANDARD 14
+)
+target_include_directories( benchgg PUBLIC ${EIGEN3_INCLUDE_DIR} )
+target_link_libraries( benchgg gbench )
 
