@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
         [&](benchmark::State & state) {
             Index size = state.range(0);
             SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
-                                                               (float)(state.range(1))/100.);
+                                                               (float)(state.range(1))/1000.);
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto id_size = qr.matrixQ().rows();   // RHS size for multiply
             Matrix<Float, Dynamic, Dynamic> id =
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
                     qr.matrixQ() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
                 benchmark::DoNotOptimize(q);
             }
-        })->Ranges({{10, 1000}, {5, 20}});
+        })->Ranges({{64, 2000}, {5, 20}});  // second argument is density in tenths of a percent
 
     // now try the transposed versions of both
     benchmark::RegisterBenchmark(
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
         [&](benchmark::State & state) {
             Index size = state.range(0);
             SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
-                                                               (float)(state.range(1))/100.);
+                                                               (float)(state.range(1))/1000.);
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto id_size = qr.matrixQ().rows();   // RHS size for multiply
             Matrix<Float, Dynamic, Dynamic> id =
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
                     qr.matrixQ().transpose() * Matrix<Float, Dynamic, Dynamic>::Identity(id_size, id_size);
                 benchmark::DoNotOptimize(q);
             }
-        })->Ranges({{10, 1000}, {5, 20}});
+        })->Ranges({{64, 2000}, {5, 20}});
 
     // benchmark multiplying the (implicit) Q matrix times a random dense matrix
     benchmark::RegisterBenchmark(
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
         [&](benchmark::State & state) {
             Index size = state.range(0);
             SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
-                                                               (float)(state.range(1))/100.);
+                                                               (float)(state.range(1))/1000.);
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto rhs_size = qr.matrixQ().rows();   // RHS size for multiply
             Matrix<Float, Dynamic, Dynamic> rhs =
@@ -82,14 +82,14 @@ int main(int argc, char* argv[]) {
                 Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ() * rhs;
                 benchmark::DoNotOptimize(q);
             }
-        })->Ranges({{10, 1000}, {5, 20}});
+        })->Ranges({{64, 2000}, {5, 20}});
 
     benchmark::RegisterBenchmark(
         "QMatrixProduct-Transpose",
         [&](benchmark::State & state) {
             Index size = state.range(0);
             SparseMatrix<Float> mat = matrices.getRandomMatrix(gen, size, size,
-                                                               (float)(state.range(1))/100.);
+                                                               (float)(state.range(1))/1000.);
             SparseQR<SparseMatrix<Float>, COLAMDOrdering<int>> qr(mat);
             auto rhs_size = qr.matrixQ().rows();   // RHS size for multiply
             Matrix<Float, Dynamic, Dynamic> rhs =
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
                 Matrix<Float, Dynamic, Dynamic> q = qr.matrixQ().transpose() * rhs;
                 benchmark::DoNotOptimize(q);
             }
-        })->Ranges({{10, 1000}, {5, 20}});
+        })->Ranges({{64, 2000}, {5, 20}});
 
     benchmark::RunSpecifiedBenchmarks();
 
